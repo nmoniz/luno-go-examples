@@ -8,8 +8,7 @@ import (
 func ReadSecret(path string) string {
 	secret, err := ioutil.ReadFile(path)
 	if err != nil {
-		log.Fatal("File reading api secret", err)
-		return ""
+		log.Fatal("Error reading api secret: ", err)
 	}
 	return string(secret)
 }
