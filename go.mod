@@ -7,3 +7,5 @@ require (
 	github.com/luno/luno-go v0.0.24
 	golang.org/x/sync v0.0.0-20210220032951-036812b2e83c
 )
+
+require golang.org/x/net v0.0.0-20190620200207-3b0461eec859 // indirect
