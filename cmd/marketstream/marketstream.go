@@ -26,6 +26,8 @@ var markets = []string{
 	// Crypto/Stable markets
 	"ETHUSDC",
 	"XBTUSDC",
+
+	"XBTIDR",
 }
 
 type TradeSetup struct {
@@ -37,19 +39,19 @@ type TradeSetup struct {
 
 var marketSetup = map[string]TradeSetup{
 	"BCHXBT": {
-		ordersSpread:   decimal.NewFromFloat64(0.000007, 6),
+		ordersSpread:   decimal.NewFromFloat64(0.000035, 6),
 		ordersVolume:   decimal.NewFromFloat64(15, 1),
 		baseBalance:    decimal.NewFromFloat64(150, 8),
 		counterBalance: decimal.NewFromFloat64(1, 8),
 	},
 	"ETHXBT": {
-		ordersSpread:   decimal.NewFromFloat64(0.00007, 6),
+		ordersSpread:   decimal.NewFromFloat64(0.00035, 6),
 		ordersVolume:   decimal.NewFromFloat64(1.5, 2),
 		baseBalance:    decimal.NewFromFloat64(15, 8),
 		counterBalance: decimal.NewFromFloat64(1, 8),
 	},
 	"LTCXBT": {
-		ordersSpread:   decimal.NewFromFloat64(0.000002, 6),
+		ordersSpread:   decimal.NewFromFloat64(0.00001, 6),
 		ordersVolume:   decimal.NewFromFloat64(45, 2),
 		baseBalance:    decimal.NewFromFloat64(450, 8),
 		counterBalance: decimal.NewFromFloat64(1, 8),
@@ -62,13 +64,13 @@ var marketSetup = map[string]TradeSetup{
 	},
 
 	"ETHUSDC": {
-		ordersSpread:   decimal.NewFromFloat64(2, 8),
+		ordersSpread:   decimal.NewFromFloat64(10, 8),
 		ordersVolume:   decimal.NewFromFloat64(0.05, 2),
 		baseBalance:    decimal.NewFromFloat64(1, 8),
 		counterBalance: decimal.NewFromFloat64(2000, 8),
 	},
 	"XBTUSDC": {
-		ordersSpread:   decimal.NewFromFloat64(30, 8),
+		ordersSpread:   decimal.NewFromFloat64(150, 8),
 		ordersVolume:   decimal.NewFromFloat64(0.1, 2),
 		baseBalance:    decimal.NewFromFloat64(1, 8),
 		counterBalance: decimal.NewFromFloat64(30000, 8),
@@ -101,7 +103,6 @@ func runPaperTrading(market string) func() error {
 		defer conn.Close()
 
 		targetSpread := marketSetup[market].ordersSpread
-		//halfTargetSpread := targetSpread.Div(decimal.NewFromFloat64(2, 0), 8)
 
 		totalOrderVolume := marketSetup[market].ordersVolume
 
@@ -137,24 +138,28 @@ func runPaperTrading(market string) func() error {
 
 			if lastPrice.Cmp(myAsk.Price) >= 0 {
 				// Assume our ask order would have traded
-				soldVol := minDec(myAsk.Volume, lastTrade.Base)
-				baseWallet = marketSetup[market].baseBalance.Sub(soldVol)
-				value := soldVol.Mul(lastPrice)
-				counterWallet = marketSetup[market].counterBalance.Add(value)
+				sellVol := minDec(myAsk.Volume, lastTrade.Base)
+				sellPrice := minDec(myAsk.Price, lastPrice)
+				sellValue := sellVol.Mul(sellPrice)
+
+				baseWallet = baseWallet.Sub(sellVol)
+				counterWallet = counterWallet.Add(sellValue)
 				log.Printf("%s: sold %s@%s", market, myAsk.Volume, lastPrice)
 
-				totalSold = totalSold.Add(soldVol)
-				totalEarned = totalEarned.Add(value)
+				totalSold = totalSold.Add(sellVol)
+				totalEarned = totalEarned.Add(sellValue)
 			} else if lastPrice.Cmp(myBid.Price) <= 0 {
 				// Assume our bid order would have traded
-				boughtVol := minDec(myBid.Volume, lastTrade.Base)
-				baseWallet = marketSetup[market].baseBalance.Add(boughtVol)
-				value := boughtVol.Mul(lastPrice)
-				counterWallet = marketSetup[market].counterBalance.Sub(value)
+				buyVol := minDec(myBid.Volume, lastTrade.Base)
+				buyPrice := minDec(myBid.Price, lastPrice)
+				buyValue := buyVol.Mul(buyPrice)
+
+				baseWallet = baseWallet.Add(buyVol)
+				counterWallet = counterWallet.Sub(buyValue)
 				log.Printf("%s: bought %s@%s", market, myBid.Volume, lastPrice)
 
-				totalBought = totalBought.Add(boughtVol)
-				totalSpent = totalSpent.Add(value)
+				totalBought = totalBought.Add(buyVol)
+				totalSpent = totalSpent.Add(buyValue)
 			} else {
 				// Assume nothing happened
 				log.Printf("%s: last_price=%s", market, lastPrice)
@@ -188,7 +193,9 @@ func runPaperTrading(market string) func() error {
 				Volume: totalOrderVolume.Mul(counterRatio),
 			}
 
-			log.Printf("%s: ask_price=%s bid_price=%s", market, myAsk.Price, myBid.Price)
+			log.Printf("%s: ask_price=%s bid_price=%s spread=%s%%",
+				market, myAsk.Price, myBid.Price,
+				myAsk.Price.Sub(myBid.Price).Div(lastPrice, 4).Mul(decimal.NewFromInt64(100)))
 		}
 
 		return nil
