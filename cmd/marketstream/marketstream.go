@@ -26,8 +26,6 @@ var markets = []string{
 	// Crypto/Stable markets
 	"ETHUSDC",
 	"XBTUSDC",
-
-	"XBTIDR",
 }
 
 type TradeSetup struct {
