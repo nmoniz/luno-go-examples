@@ -14,7 +14,7 @@ var apiSecretPath = flag.String("api_secret_path", "./secret", "The Luno API sec
 func main() {
 	flag.Parse()
 
-	url := "wss://ws.staging.luno.com/api/1/userstream"
+	url := "wss://ws.luno.com/api/1/userstream"
 	ws, _, err := websocket.DefaultDialer.Dial(url, nil)
 	if err != nil {
 		log.Fatal(err)
